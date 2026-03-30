@@ -1,0 +1,35 @@
+{
+  "name": "avabridge",
+  "version": "1.0.0",
+  "description": "Cross-chain ERC20 bridge using [Avalanche Teleporter](https://github.com/ava-labs/teleporter).   Intermediate complexity · Multi-contract · Full event coverage.",
+  "main": "scripts/deploy.js",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "deploy:source": "npx hardhat run scripts/deploy.js --network cchain --mode=source",
+    "deploy:dest": "npx hardhat run scripts/deploy.js --network mysubnet --mode=dest",
+    "link": "npx hardhat run scripts/deploy.js --network cchain --mode=link",
+    "test": "npx hardhat test",
+    "frontend:dev": "python3 -m http.server 5173",
+    "start": "npm run frontend:dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/armlynobinguar/AvaBridge.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/armlynobinguar/AvaBridge/issues"
+  },
+  "homepage": "https://github.com/armlynobinguar/AvaBridge#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "hh2",
+    "dotenv": "^17.3.1",
+    "hardhat": "^2.26.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}

@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Hardhat artifacts
+artifacts/
+cache/
+typechain-types/
+
+# coverage / reports
+coverage/
+coverage.json
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor files
+.DS_Store
+.idea/
+.vscode/

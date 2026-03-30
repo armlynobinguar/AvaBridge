@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AvaBridge — Cross-Chain Token Bridge on Avalanche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#E84142;
+  --red2:#FF6162;
+  --orange:#FF7A30;
+  --bg:#07070A;
+  --surface:#0F0F14;
+  --card:#141419;
+  --border:#232330;
+  --border2:#323245;
+  --text:#F0F0F8;
+  --muted:#7070A0;
+  --dim:#404060;
+  --green:#20D46B;
+  --blue:#4FA3FF;
+  --amber:#F5A623;
+  --display:'Bebas Neue',sans-serif;
+  --mono:'DM Mono',monospace;
+  --body:'DM Sans',sans-serif;
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body);
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+  cursor:crosshair;
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);
+  pointer-events:none;z-index:9999;opacity:.3;
+}
+
+/* ── GRID BG ── */
+.grid-bg{
+  position:fixed;inset:0;
+  background-image:linear-gradient(rgba(232,65,66,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(232,65,66,.04) 1px,transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;z-index:0;
+}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 60px;
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  background:rgba(7,7,10,.8);
+}
+.nav-logo{font-family:var(--display);font-size:28px;letter-spacing:2px;color:var(--text)}
+.nav-logo span{color:var(--red)}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  text-decoration:none;letter-spacing:1px;text-transform:uppercase;
+  transition:.2s;
+}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{
+  font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;
+  background:var(--red);color:#fff;border:none;
+  padding:10px 24px;border-radius:0;cursor:crosshair;
+  transition:.2s;text-decoration:none;
+}
+.nav-cta:hover{background:var(--red2)}
+
+/* ── HERO ── */
+.hero{
+  position:relative;z-index:1;
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:140px 60px 80px;
+  border-bottom:1px solid var(--border);
+  overflow:hidden;
+}
+
+.hero-tag{
+  font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:3px;
+  text-transform:uppercase;margin-bottom:24px;
+  display:flex;align-items:center;gap:10px;
+}
+.hero-tag::before{content:'';display:block;width:32px;height:1px;background:var(--red)}
+
+.hero-h1{
+  font-family:var(--display);
+  font-size:clamp(80px,12vw,200px);
+  line-height:.9;letter-spacing:2px;
+  color:var(--text);
+  max-width:1200px;
+  animation:reveal .8s cubic-bezier(.16,1,.3,1) both;
+}
+.hero-h1 .red{color:var(--red)}
+.hero-h1 .stroke{
+  -webkit-text-stroke:2px var(--text);
+  color:transparent;
+}
+
+@keyframes reveal{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+
+.hero-sub{
+  max-width:580px;margin-top:40px;
+  font-size:17px;line-height:1.7;color:var(--muted);font-weight:300;
+  animation:reveal .8s .2s cubic-bezier(.16,1,.3,1) both;
+}
+
+.hero-actions{
+  display:flex;gap:16px;margin-top:48px;
+  animation:reveal .8s .4s cubic-bezier(.16,1,.3,1) both;
+}
+.btn-primary{
+  font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;
+  background:var(--red);color:#fff;
+  padding:16px 40px;text-decoration:none;
+  transition:.2s;display:inline-block;
+  border:2px solid var(--red);
+}
+.btn-primary:hover{background:transparent;color:var(--red)}
+.btn-secondary{
+  font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;
+  background:transparent;color:var(--muted);
+  padding:16px 40px;text-decoration:none;
+  border:1px solid var(--border2);transition:.2s;
+}
+.btn-secondary:hover{color:var(--text);border-color:var(--muted)}
+
+/* Giant decorative number */
+.hero-deco{
+  position:absolute;right:-60px;top:50%;transform:translateY(-50%);
+  font-family:var(--display);font-size:480px;
+  color:transparent;-webkit-text-stroke:1px rgba(232,65,66,.08);
+  line-height:1;pointer-events:none;user-select:none;
+  animation:reveal 1s .1s both;
+}
+
+.hero-stats{
+  display:flex;gap:48px;margin-top:80px;padding-top:48px;
+  border-top:1px solid var(--border);
+  animation:reveal .8s .6s cubic-bezier(.16,1,.3,1) both;
+}
+.hstat-val{font-family:var(--display);font-size:48px;letter-spacing:1px;color:var(--red)}
+.hstat-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+
+/* ── SECTIONS ── */
+section{
+  position:relative;z-index:1;
+  padding:100px 60px;
+  border-bottom:1px solid var(--border);
+}
+.section-no{
+  font-family:var(--mono);font-size:11px;color:var(--dim);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-no::after{content:'';flex:1;height:1px;background:var(--border)}
+.section-title{
+  font-family:var(--display);font-size:clamp(48px,7vw,100px);
+  line-height:.95;letter-spacing:2px;margin-bottom:16px;
+}
+.section-title .accent{color:var(--red)}
+
+/* ── PROBLEM ── */
+.problem-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:2px;
+  margin-top:60px;
+}
+.problem-card{
+  background:var(--surface);border:1px solid var(--border);
+  padding:40px;position:relative;overflow:hidden;
+  transition:.3s;
+}
+.problem-card:hover{border-color:var(--red);background:var(--card)}
+.problem-card::before{
+  content:attr(data-no);
+  position:absolute;right:24px;top:16px;
+  font-family:var(--display);font-size:80px;color:rgba(232,65,66,.08);
+  line-height:1;
+}
+.prob-icon{
+  width:40px;height:40px;border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;margin-bottom:20px;
+  background:var(--card);
+}
+.prob-title{font-family:var(--display);font-size:28px;letter-spacing:1px;margin-bottom:12px}
+.prob-desc{font-size:14px;line-height:1.7;color:var(--muted)}
+
+/* ── SOLUTION ── */
+.solution-layout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;margin-top:60px}
+.solution-text p{font-size:16px;line-height:1.8;color:var(--muted);margin-bottom:20px}
+.solution-text p strong{color:var(--text);font-weight:500}
+
+.solution-visual{
+  background:var(--surface);border:1px solid var(--border);
+  padding:32px;font-family:var(--mono);font-size:12px;
+}
+.sol-chain{
+  display:flex;align-items:center;gap:12px;padding:16px;
+  background:var(--card);border:1px solid var(--border);margin-bottom:2px;
+}
+.sol-chain-dot{width:10px;height:10px;border-radius:50%}
+.sol-chain-name{flex:1;letter-spacing:.5px}
+.sol-chain-badge{font-size:10px;color:var(--muted);padding:3px 8px;border:1px solid var(--border);border-radius:2px}
+
+.sol-arrow{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px;color:var(--dim);font-size:11px;letter-spacing:2px;
+}
+.sol-pulse{
+  display:flex;gap:3px;align-items:center;
+}
+.sol-pulse span{
+  width:4px;height:4px;border-radius:50%;background:var(--red);
+  animation:pulse-seq .8s ease-in-out infinite;
+}
+.sol-pulse span:nth-child(2){animation-delay:.15s}
+.sol-pulse span:nth-child(3){animation-delay:.3s}
+@keyframes pulse-seq{0%,80%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+/* ── FEATURES ── */
+.features-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--border);margin-top:60px;
+}
+.feat-card{
+  background:var(--bg);padding:36px 32px;
+  transition:.3s;position:relative;
+}
+.feat-card:hover{background:var(--surface)}
+.feat-card:hover .feat-no{color:var(--red)}
+.feat-no{
+  font-family:var(--display);font-size:64px;color:var(--dim);
+  line-height:1;margin-bottom:16px;transition:.3s;
+}
+.feat-title{font-family:var(--display);font-size:26px;letter-spacing:1px;margin-bottom:12px}
+.feat-desc{font-size:13px;line-height:1.7;color:var(--muted)}
+.feat-tag{
+  display:inline-block;margin-top:16px;
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:4px 10px;background:rgba(232,65,66,.1);color:var(--red);
+  border:1px solid rgba(232,65,66,.2);
+}
+
+/* ── ARCHITECTURE ── */
+.arch-diagram{
+  margin-top:60px;
+  background:var(--surface);border:1px solid var(--border);
+  padding:60px;font-family:var(--mono);
+}
+.arch-row{display:flex;align-items:stretch;gap:0}
+.arch-chain-block{
+  flex:1;border:1px solid var(--border);padding:24px;
+  background:var(--card);
+}
+.arch-chain-label{
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+  margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);
+}
+.arch-contract{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;border:1px solid var(--border);margin-bottom:8px;
+  font-size:11px;transition:.2s;cursor:default;
+}
+.arch-contract:hover{border-color:var(--border2);background:var(--surface)}
+.arch-contract-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.arch-contract-name{font-weight:500;color:var(--text)}
+.arch-contract-desc{color:var(--muted);font-size:10px;margin-top:2px}
+.arch-event{font-size:9px;color:var(--dim);margin-top:4px;letter-spacing:.5px}
+
+.arch-teleporter{
+  width:180px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:24px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  position:relative;
+}
+.arch-tele-label{
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+  text-align:center;margin-bottom:12px;
+}
+.arch-pipe{
+  width:2px;height:80px;background:linear-gradient(var(--red),var(--orange));
+  position:relative;border-radius:2px;
+}
+.arch-pipe-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--red);
+  position:absolute;left:50%;transform:translateX(-50%);
+  animation:pipe-travel 1.8s ease-in-out infinite;
+  box-shadow:0 0 6px var(--red);
+}
+@keyframes pipe-travel{0%{top:0;background:var(--red)}100%{top:100%;background:var(--orange)}}
+.arch-arrow-label{font-size:9px;color:var(--dim);margin-top:8px;text-align:center;letter-spacing:1px}
+
+/* ── TECH STACK ── */
+.stack-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--border);margin-top:60px;
+}
+.stack-item{
+  background:var(--bg);padding:28px 24px;
+  transition:.3s;
+}
+.stack-item:hover{background:var(--surface)}
+.stack-layer{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.stack-name{font-family:var(--display);font-size:28px;letter-spacing:1px;margin-bottom:6px}
+.stack-desc{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ── HOW IT WORKS ── */
+.steps-list{margin-top:60px;display:flex;flex-direction:column;gap:0}
+.step{
+  display:grid;grid-template-columns:80px 1fr;
+  border:1px solid var(--border);border-bottom:none;
+  transition:.3s;
+}
+.step:last-child{border-bottom:1px solid var(--border)}
+.step:hover{background:var(--surface)}
+.step:hover .step-no{color:var(--red)}
+.step-no{
+  font-family:var(--display);font-size:64px;color:var(--dim);
+  display:flex;align-items:center;justify-content:center;
+  border-right:1px solid var(--border);
+  transition:.3s;line-height:1;
+}
+.step-body{padding:32px 40px}
+.step-title{font-family:var(--display);font-size:32px;letter-spacing:1px;margin-bottom:8px}
+.step-desc{font-size:14px;line-height:1.7;color:var(--muted)}
+.step-code{
+  margin-top:12px;font-family:var(--mono);font-size:11px;
+  background:var(--card);border:1px solid var(--border);
+  padding:12px 16px;color:var(--green);letter-spacing:.3px;
+}
+.step-dir{
+  display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  padding:3px 8px;border:1px solid var(--border);color:var(--muted);margin-bottom:8px;
+  text-transform:uppercase;
+}
+
+/* ── CONTRACT BREAKDOWN ── */
+.contracts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:60px}
+.contract-card{
+  background:var(--surface);border:1px solid var(--border);
+  overflow:hidden;transition:.3s;
+}
+.contract-card:hover{border-color:var(--border2)}
+.contract-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  background:var(--card);
+}
+.contract-name{font-family:var(--display);font-size:26px;letter-spacing:1px}
+.contract-chain{
+  font-family:var(--mono);font-size:10px;padding:4px 10px;
+  border:1px solid;border-radius:2px;letter-spacing:.5px;
+}
+.chain-src{border-color:rgba(232,65,66,.3);color:var(--red);background:rgba(232,65,66,.08)}
+.chain-dst{border-color:rgba(255,122,48,.3);color:var(--orange);background:rgba(255,122,48,.08)}
+.chain-both{border-color:rgba(79,163,255,.3);color:var(--blue);background:rgba(79,163,255,.08)}
+.contract-body{padding:24px}
+.contract-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px}
+.contract-events{border-top:1px solid var(--border);padding-top:16px}
+.event-label{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.event-item{
+  display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;
+  font-family:var(--mono);font-size:11px;
+}
+.event-name{color:var(--green)}
+.event-args{color:var(--muted)}
+
+/* ── CTA ── */
+.cta-section{
+  text-align:center;padding:120px 60px;
+  position:relative;overflow:hidden;
+}
+.cta-bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 80% at 50% 100%,rgba(232,65,66,.12),transparent);
+  pointer-events:none;
+}
+.cta-h2{
+  font-family:var(--display);
+  font-size:clamp(60px,9vw,140px);
+  line-height:.9;letter-spacing:2px;
+  margin-bottom:32px;position:relative;z-index:1;
+}
+.cta-sub{font-size:16px;color:var(--muted);margin-bottom:48px;position:relative;z-index:1;max-width:480px;margin-left:auto;margin-right:auto}
+.cta-actions{display:flex;gap:16px;justify-content:center;position:relative;z-index:1}
+
+/* ── FOOTER ── */
+footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:32px 60px;border-top:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;color:var(--dim);
+  position:relative;z-index:1;
+}
+
+/* ── Reveal animations on scroll ── */
+.reveal{opacity:0;transform:translateY(30px);transition:.7s cubic-bezier(.16,1,.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+@media(max-width:900px){
+  nav{padding:16px 24px}
+  .nav-links{display:none}
+  section,.hero{padding:80px 24px}
+  .hero-h1{font-size:clamp(60px,15vw,120px)}
+  .hero-deco{display:none}
+  .problem-grid,.solution-layout,.features-grid,.arch-row,.stack-grid,.contracts-grid{grid-template-columns:1fr}
+  .hero-stats{flex-wrap:wrap;gap:24px}
+  footer{flex-direction:column;gap:12px;padding:24px}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">AVA<span>BRIDGE</span></div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#solution">Solution</a>
+    <a href="#features">Features</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#how">How It Works</a>
+    <a href="#contracts">Contracts</a>
+  </div>
+  <a href="app.html" class="nav-cta">Launch App →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero" style="padding-top:160px">
+  <div class="hero-tag">Avalanche Teleporter · Cross-Chain Protocol</div>
+  <h1 class="hero-h1">
+    MOVE<br/>
+    TOKENS<br/>
+    <span class="red">ACROSS</span><br/>
+    <span class="stroke">CHAINS</span>
+  </h1>
+  <p class="hero-sub">
+    AvaBridge is a decentralized cross-chain token bridge built on Avalanche's native Teleporter messaging protocol — enabling seamless, trust-minimized asset transfers between C-Chain and any custom L1 subnet.
+  </p>
+  <div class="hero-actions">
+    <a href="app.html" class="btn-primary">Launch Bridge →</a>
+    <a href="#architecture" class="btn-secondary">View Architecture</a>
+  </div>
+  <div class="hero-deco">∞</div>
+  <div class="hero-stats">
+    <div>
+      <div class="hstat-val">4</div>
+      <div class="hstat-label">Smart Contracts</div>
+    </div>
+    <div>
+      <div class="hstat-val">~15s</div>
+      <div class="hstat-label">Bridge Latency</div>
+    </div>
+    <div>
+      <div class="hstat-val">0%</div>
+      <div class="hstat-label">Bridge Fee</div>
+    </div>
+    <div>
+      <div class="hstat-val">2-way</div>
+      <div class="hstat-label">Bridge Direction</div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="section-no">01 — Problem</div>
+  <h2 class="section-title reveal">THE <span class="accent">PROBLEM</span><br/>WITH BRIDGES</h2>
+  <div class="problem-grid reveal">
+    <div class="problem-card" data-no="01">
+      <div class="prob-icon">⛓</div>
+      <div class="prob-title">Chain Isolation</div>
+      <div class="prob-desc">Avalanche subnets are isolated execution environments. Assets native to C-Chain cannot natively exist on your custom L1 — users are locked into a single chain.</div>
+    </div>
+    <div class="problem-card" data-no="02">
+      <div class="prob-icon">🔓</div>
+      <div class="prob-title">Trust-Heavy Bridges</div>
+      <div class="prob-desc">Most bridges rely on centralized multisigs or off-chain validators. A single point of compromise means total loss — as seen in $2B+ in bridge hacks since 2021.</div>
+    </div>
+    <div class="problem-card" data-no="03">
+      <div class="prob-icon">🐌</div>
+      <div class="prob-title">Slow Finality</div>
+      <div class="prob-desc">Traditional cross-chain transfers wait for 20+ block confirmations and manual relaying. Users sit through 10–30 minute waits for simple token movements.</div>
+    </div>
+    <div class="problem-card" data-no="04">
+      <div class="prob-icon">💸</div>
+      <div class="prob-title">Excessive Fees</div>
+      <div class="prob-desc">Third-party bridge protocols charge 0.05–0.3% per transfer, plus gas on both chains. For frequent or small transfers, fees become prohibitive for users.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section id="solution">
+  <div class="section-no">02 — Solution</div>
+  <h2 class="section-title reveal">AVA<span class="accent">BRIDGE</span><br/>CHANGES THIS</h2>
+  <div class="solution-layout reveal">
+    <div class="solution-text">
+      <p>AvaBridge uses <strong>Avalanche Teleporter</strong> — a native cross-chain messaging protocol built into the Avalanche network layer. Instead of trusting a third-party bridge operator, messages are validated by Avalanche's own validator set via the Warp messaging standard.</p>
+      <p>On the source chain, tokens are <strong>locked</strong> in a non-custodial smart contract. Teleporter relayers detect the lock event and deliver a verified message to the destination chain, where <strong>wrapped tokens are minted 1:1</strong> to the recipient.</p>
+      <p>The return path burns wrapped tokens on the subnet and unlocks originals on C-Chain — a complete <strong>lock-mint / burn-release</strong> cycle with no intermediaries, no custodians, no trust required.</p>
+    </div>
+    <div class="solution-visual">
+      <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)">Bridge Flow Diagram</div>
+      <div class="sol-chain">
+        <div class="sol-chain-dot" style="background:var(--red);box-shadow:0 0 6px var(--red)"></div>
+        <div class="sol-chain-name">C-Chain (Fuji)</div>
+        <div class="sol-chain-badge">Source · Lock ERC20</div>
+      </div>
+      <div class="sol-arrow">
+        <div class="sol-pulse"><span></span><span></span><span></span></div>
+        Teleporter Warp Message
+        <div class="sol-pulse"><span></span><span></span><span></span></div>
+      </div>
+      <div class="sol-chain">
+        <div class="sol-chain-dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange)"></div>
+        <div class="sol-chain-name">Your Subnet (L1)</div>
+        <div class="sol-chain-badge">Destination · Mint bToken</div>
+      </div>
+      <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;font-size:10px;color:var(--dim)">
+        <div style="margin-bottom:6px">► User approves token spend</div>
+        <div style="margin-bottom:6px">► Sender locks tokens, fires Teleporter</div>
+        <div style="margin-bottom:6px">► Relayer delivers message (~15s)</div>
+        <div>► Receiver mints 1:1 wrapped tokens</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-no">03 — Features</div>
+  <h2 class="section-title reveal">WHAT IT<br/><span class="accent">DOES</span></h2>
+  <div class="features-grid reveal">
+    <div class="feat-card">
+      <div class="feat-no">01</div>
+      <div class="feat-title">Native Teleporter</div>
+      <div class="feat-desc">Uses Avalanche's built-in ICM (Interchain Messaging) instead of third-party relayers. Warp messages are validated by the same validator set securing the network.</div>
+      <div class="feat-tag">Security</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">02</div>
+      <div class="feat-title">Lock / Mint Model</div>
+      <div class="feat-desc">Source tokens are locked, never burned. Wrapped tokens are minted 1:1 on the destination chain. Total supply is always fully backed — no fractional reserve risk.</div>
+      <div class="feat-tag">Design</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">03</div>
+      <div class="feat-title">Two-Way Bridge</div>
+      <div class="feat-desc">Full round-trip support. Bridge forward from C-Chain to subnet, or bridge back by burning wrapped tokens and unlocking originals. Complete freedom of movement.</div>
+      <div class="feat-tag">UX</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">04</div>
+      <div class="feat-title">Event-Driven</div>
+      <div class="feat-desc">Every action emits on-chain events: BridgeInitiated, TokensMintedOnDestination, ReturnInitiated, BridgeCompleted. Full auditability and indexing support.</div>
+      <div class="feat-tag">Transparency</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">05</div>
+      <div class="feat-title">Zero Protocol Fee</div>
+      <div class="feat-desc">The bridge contracts charge no fees. Users only pay gas on each chain. Open relayer model means anyone can relay messages — no fee extraction at the protocol level.</div>
+      <div class="feat-tag">Economics</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">06</div>
+      <div class="feat-title">Multi-Destination</div>
+      <div class="feat-desc">The sender contract supports registering multiple destination chains. One deployment on C-Chain can serve N subnets — extendable without redeployment.</div>
+      <div class="feat-tag">Scalability</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">07</div>
+      <div class="feat-title">Permissioned Minting</div>
+      <div class="feat-desc">BridgedToken uses an access-controlled mint/burn interface — only the BridgeReceiver can mint. Protects against inflation attacks even if the frontend is compromised.</div>
+      <div class="feat-tag">Security</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">08</div>
+      <div class="feat-title">Full-Stack UI</div>
+      <div class="feat-desc">A production-grade frontend with MetaMask integration, live balance display, auto-approval flow, transaction log, event feed, and block explorer links.</div>
+      <div class="feat-tag">DX</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-no">09</div>
+      <div class="feat-title">Emergency Recovery</div>
+      <div class="feat-desc">Owner-only token recovery function on the sender contract. If a bridge message fails irrecoverably, the owner can return locked tokens — no user funds are permanently lost.</div>
+      <div class="feat-tag">Safety</div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-no">04 — Architecture</div>
+  <h2 class="section-title reveal">SYSTEM<br/><span class="accent">DESIGN</span></h2>
+  <div class="arch-diagram reveal">
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:32px;padding-bottom:16px;border-bottom:1px solid var(--border)">Contract Architecture · Cross-Chain Message Flow</div>
+    <div class="arch-row">
+      <!-- Source -->
+      <div class="arch-chain-block">
+        <div class="arch-chain-label">● C-Chain — Source Chain (Fuji / Mainnet)</div>
+        <div class="arch-contract">
+          <div class="arch-contract-dot" style="background:var(--muted)"></div>
+          <div>
+            <div class="arch-contract-name">ERC20 Token</div>
+            <div class="arch-contract-desc">Source token being bridged (e.g. USDC)</div>
+            <div class="arch-event">► Transfer, Approval</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--dim);padding:6px 0 6px 20px">↓ approve(sender, amount)</div>
+        <div class="arch-contract" style="border-color:rgba(232,65,66,.3)">
+          <div class="arch-contract-dot" style="background:var(--red)"></div>
+          <div>
+            <div class="arch-contract-name" style="color:var(--red)">TokenBridgeSender</div>
+            <div class="arch-contract-desc">Locks ERC20 · sends Teleporter message · releases on return</div>
+            <div class="arch-event">► BridgeInitiated · BridgeCompleted · DestinationRegistered</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--dim);padding:6px 0 6px 20px">↓ sendCrossChainMessage()</div>
+        <div class="arch-contract">
+          <div class="arch-contract-dot" style="background:var(--blue)"></div>
+          <div>
+            <div class="arch-contract-name">ITeleporterMessenger</div>
+            <div class="arch-contract-desc">Ava Labs Warp gateway · same address all chains</div>
+            <div class="arch-event">0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teleporter pipe -->
+      <div class="arch-teleporter">
+        <div class="arch-tele-label">Teleporter<br/>Warp Relay</div>
+        <div class="arch-pipe"><div class="arch-pipe-dot"></div></div>
+        <div class="arch-arrow-label">~15s</div>
+        <div class="arch-pipe" style="margin-top:8px"><div class="arch-pipe-dot" style="animation-direction:reverse;background:var(--orange)"></div></div>
+        <div class="arch-tele-label" style="margin-top:8px">Return<br/>Path</div>
+      </div>
+
+      <!-- Destination -->
+      <div class="arch-chain-block">
+        <div class="arch-chain-label" style="color:var(--orange)">● Subnet — Destination Chain (Your L1)</div>
+        <div class="arch-contract" style="border-color:rgba(255,122,48,.3)">
+          <div class="arch-contract-dot" style="background:var(--orange)"></div>
+          <div>
+            <div class="arch-contract-name" style="color:var(--orange)">TokenBridgeReceiver</div>
+            <div class="arch-contract-desc">Receives Teleporter msg · mints/burns bToken · sends return</div>
+            <div class="arch-event">► TokensMintedOnDestination · ReturnInitiated · SourceBridgeSet</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--dim);padding:6px 0 6px 20px">↓ mint() / burn()</div>
+        <div class="arch-contract">
+          <div class="arch-contract-dot" style="background:var(--green)"></div>
+          <div>
+            <div class="arch-contract-name">BridgedToken (bERC20)</div>
+            <div class="arch-contract-desc">Mintable/burnable ERC20 · bridge-only mint access</div>
+            <div class="arch-event">► TokensMinted · TokensBurned · Transfer · BridgeUpdated</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-no">05 — How It Works</div>
+  <h2 class="section-title reveal">STEP BY<br/><span class="accent">STEP</span></h2>
+  <div class="steps-list reveal">
+    <div class="step">
+      <div class="step-no">1</div>
+      <div class="step-body">
+        <div class="step-dir">Source → Destination</div>
+        <div class="step-title">User Approves Token Spend</div>
+        <div class="step-desc">The user grants the TokenBridgeSender contract permission to pull their ERC20 tokens. The bridge UI handles this automatically — no manual approve needed.</div>
+        <div class="step-code">await token.approve(TokenBridgeSender.address, amount)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-no">2</div>
+      <div class="step-body">
+        <div class="step-dir">Source Chain</div>
+        <div class="step-title">Tokens Are Locked</div>
+        <div class="step-desc">The sender contract pulls the tokens from the user, locks them, increments totalLocked, and emits BridgeInitiated. Funds are safely held — not burned, not moved.</div>
+        <div class="step-code">sender.bridgeTokens(destinationChainID, recipient, amount)<br/>// emits: BridgeInitiated(chainID, from, to, amount, msgID)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-no">3</div>
+      <div class="step-body">
+        <div class="step-dir">Teleporter Layer</div>
+        <div class="step-title">Warp Message Delivered</div>
+        <div class="step-desc">Avalanche Teleporter relayers detect the sendCrossChainMessage call and deliver a Warp-signed message to the destination chain's BridgeReceiver within ~15 seconds. No external relayer needed.</div>
+        <div class="step-code">teleporter.sendCrossChainMessage(TeleporterMessageInput{<br/>  destinationBlockchainID, destinationAddress, payload<br/>})</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-no">4</div>
+      <div class="step-body">
+        <div class="step-dir">Destination Chain</div>
+        <div class="step-title">Wrapped Tokens Are Minted</div>
+        <div class="step-desc">The BridgeReceiver validates the message origin, decodes the payload, and calls BridgedToken.mint() — creating exactly the same amount of wrapped tokens for the recipient.</div>
+        <div class="step-code">receiver.receiveTeleporterMessage(srcChainID, origin, msg)<br/>// emits: TokensMintedOnDestination(recipient, amount)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-no">5</div>
+      <div class="step-body">
+        <div class="step-dir">Return Journey</div>
+        <div class="step-title">Burn → Unlock</div>
+        <div class="step-desc">When bridging back, the user approves + calls returnTokens(). The receiver burns the wrapped tokens and sends a Teleporter message back to the sender, which releases the original locked tokens.</div>
+        <div class="step-code">receiver.returnTokens(amount, sourceRecipient)<br/>// burns bToken → sends Teleporter → unlocks ERC20 on source</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTRACTS -->
+<section id="contracts">
+  <div class="section-no">06 — Contracts</div>
+  <h2 class="section-title reveal">4 SMART<br/><span class="accent">CONTRACTS</span></h2>
+  <div class="contracts-grid reveal">
+    <div class="contract-card">
+      <div class="contract-header">
+        <div class="contract-name">TokenBridgeSender</div>
+        <div class="contract-chain chain-src">C-Chain</div>
+      </div>
+      <div class="contract-body">
+        <div class="contract-desc">The entry point on the source chain. Handles ERC20 locking, calls Teleporter's sendCrossChainMessage, and listens for return messages to release locked tokens. Supports multiple destination chains via registerDestination().</div>
+        <div class="contract-events">
+          <div class="event-label">Events</div>
+          <div class="event-item"><span class="event-name">BridgeInitiated</span><span class="event-args">(destChainID, sender, recipient, amount, msgID)</span></div>
+          <div class="event-item"><span class="event-name">BridgeCompleted</span><span class="event-args">(srcChainID, recipient, amount)</span></div>
+          <div class="event-item"><span class="event-name">DestinationRegistered</span><span class="event-args">(chainID, receiverContract)</span></div>
+          <div class="event-item"><span class="event-name">TokensRecovered</span><span class="event-args">(to, amount)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="contract-card">
+      <div class="contract-header">
+        <div class="contract-name">TokenBridgeReceiver</div>
+        <div class="contract-chain chain-dst">Subnet</div>
+      </div>
+      <div class="contract-body">
+        <div class="contract-desc">Lives on the destination subnet. Implements ITeleporterReceiver to receive Warp messages, validates origin, and calls BridgedToken.mint(). Also handles the return path by burning tokens and firing a Teleporter message back.</div>
+        <div class="contract-events">
+          <div class="event-label">Events</div>
+          <div class="event-item"><span class="event-name">TokensMintedOnDestination</span><span class="event-args">(recipient, amount, srcChainID)</span></div>
+          <div class="event-item"><span class="event-name">ReturnInitiated</span><span class="event-args">(burner, srcRecipient, amount, msgID)</span></div>
+          <div class="event-item"><span class="event-name">SourceBridgeSet</span><span class="event-args">(chainID, bridge)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="contract-card">
+      <div class="contract-header">
+        <div class="contract-name">BridgedToken</div>
+        <div class="contract-chain chain-dst">Subnet</div>
+      </div>
+      <div class="contract-body">
+        <div class="contract-desc">A minimal ERC20 with permissioned mint/burn. Only the BridgeReceiver address can call mint() or burn(). Standard transfer, approve, and transferFrom are fully public. Decimals match the source token (18).</div>
+        <div class="contract-events">
+          <div class="event-label">Events</div>
+          <div class="event-item"><span class="event-name">TokensMinted</span><span class="event-args">(to, amount)</span></div>
+          <div class="event-item"><span class="event-name">TokensBurned</span><span class="event-args">(from, amount)</span></div>
+          <div class="event-item"><span class="event-name">Transfer</span><span class="event-args">(from, to, amount) — ERC20 standard</span></div>
+          <div class="event-item"><span class="event-name">BridgeUpdated</span><span class="event-args">(oldBridge, newBridge)</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="contract-card">
+      <div class="contract-header">
+        <div class="contract-name">ITeleporterMessenger</div>
+        <div class="contract-chain chain-both">Both Chains</div>
+      </div>
+      <div class="contract-body">
+        <div class="contract-desc">Simplified interface to Ava Labs' Teleporter protocol. The actual contract is deployed and maintained by Ava Labs at the same address on every Avalanche chain. Provides sendCrossChainMessage() and messageReceived().</div>
+        <div class="contract-events">
+          <div class="event-label">Address (all chains)</div>
+          <div class="event-item"><span class="event-name" style="font-size:10px">0x253b2784c75e510dD0fF1da844684a1aC0aa5fcf</span></div>
+          <div style="margin-top:8px"><div class="event-label">Key Methods</div></div>
+          <div class="event-item"><span class="event-name">sendCrossChainMessage</span><span class="event-args">(TeleporterMessageInput)</span></div>
+          <div class="event-item"><span class="event-name">messageReceived</span><span class="event-args">(srcChainID, msgID) → bool</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section>
+  <div class="section-no">07 — Stack</div>
+  <h2 class="section-title reveal">TECH<br/><span class="accent">STACK</span></h2>
+  <div class="stack-grid reveal">
+    <div class="stack-item">
+      <div class="stack-layer">Protocol Layer</div>
+      <div class="stack-name">Avalanche</div>
+      <div class="stack-desc">C-Chain + custom L1 subnets. EVM-compatible execution on Snowman consensus.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Messaging Layer</div>
+      <div class="stack-name">Teleporter</div>
+      <div class="stack-desc">ICM / Warp native cross-chain messaging. No third-party bridge operators.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Smart Contracts</div>
+      <div class="stack-name">Solidity</div>
+      <div class="stack-desc">^0.8.20 · Hardhat · Ethers.js v6 · custom errors · fully typed.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Frontend</div>
+      <div class="stack-name">Vanilla</div>
+      <div class="stack-desc">Zero build step. HTML + CSS + Ethers v6 CDN. MetaMask wallet integration.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">DevOps</div>
+      <div class="stack-name">Hardhat</div>
+      <div class="stack-desc">Compile, deploy, test. Configured for Fuji testnet and custom subnet RPCs.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Monorepo</div>
+      <div class="stack-name">pnpm</div>
+      <div class="stack-desc">Compatible with public-avalanche-sdks monorepo structure. Drop-in package.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Token Standard</div>
+      <div class="stack-name">ERC-20</div>
+      <div class="stack-desc">Source: any ERC20. Destination: custom BridgedToken with bridge-only mint/burn.</div>
+    </div>
+    <div class="stack-item">
+      <div class="stack-layer">Network</div>
+      <div class="stack-name">Fuji</div>
+      <div class="stack-desc">Testnet-first. Config ready for C-Chain mainnet and any registered subnet.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" style="border-bottom:1px solid var(--border)">
+  <div class="cta-bg"></div>
+  <h2 class="cta-h2 reveal">READY TO<br/><span style="color:var(--red)">BRIDGE?</span></h2>
+  <p class="cta-sub reveal">Deploy the contracts, configure your subnet, and launch the bridge in under 30 minutes.</p>
+  <div class="cta-actions reveal">
+    <a href="app.html" class="btn-primary">Launch Bridge App →</a>
+    <a href="https://github.com/ava-labs/teleporter" class="btn-secondary" target="_blank">Teleporter Docs ↗</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div>AVABRIDGE · Built on Avalanche Teleporter · Solidity ^0.8.20</div>
+  <div>
+    <a href="https://docs.avax.network" style="color:var(--dim);text-decoration:none;margin-left:24px;transition:.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--dim)'">Avalanche Docs</a>
+    <a href="https://github.com/ava-labs/teleporter" style="color:var(--dim);text-decoration:none;margin-left:24px;transition:.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--dim)'">Teleporter GitHub</a>
+    <a href="https://faucet.avax.network" style="color:var(--dim);text-decoration:none;margin-left:24px;transition:.2s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--dim)'">Fuji Faucet</a>
+  </div>
+</footer>
+
+<script>
+const reveals = document.querySelectorAll('.reveal');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+}, {threshold:.1});
+reveals.forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
