@@ -26,3 +26,11 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# build outputs
+dist/
+build/
+out/
+
+# misc local files
+*.local
