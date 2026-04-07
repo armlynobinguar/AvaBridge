@@ -10,6 +10,7 @@
     "link": "npx hardhat run scripts/deploy.js --network cchain --mode=link",
     "test": "npx hardhat test",
     "frontend:dev": "python3 -m http.server 5173",
+    "dev": "npm run frontend:dev",
     "start": "npm run frontend:dev"
   },
   "repository": {
