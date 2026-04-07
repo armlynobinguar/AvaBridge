@@ -91,7 +91,7 @@ SOURCE CHAIN (C-Chain / Fuji)          DESTINATION CHAIN (Your L1 Subnet)
 npm install
 ```
 
-### 1.1 Run frontend locally
+### 1.1 Run the frontend locally
 
 ```bash
 npm run frontend:dev
@@ -101,6 +101,11 @@ Open:
 
 - `http://localhost:5173/landing.html`
 - `http://localhost:5173/app.html`
+
+Notes:
+
+- `npm run dev` runs the same frontend server (see `package.json`).
+- The UI lives in `app.html` (single-file app) and `landing.html`.
 
 ### 2. Configure environment
 
@@ -116,27 +121,59 @@ SUBNET_CHAIN_ID=12345
 SNOWTRACE_API_KEY=optional
 ```
 
-### 3. Deploy to Source Chain (C-Chain Fuji)
+### 3. Configure deploy script constants
+
+Update the constants at the top of `scripts/deploy.js`:
+
+- **`SOURCE_TOKEN_ADDRESS`**: the ERC20 on Avalanche C-Chain (Fuji by default) that users will lock/bridge
+- **`SOURCE_CHAIN_ID`**: the Avalanche C-Chain blockchain ID (bytes32) used by Teleporter linking
+- **`DEPLOYED_SENDER` / `DEPLOYED_RECEIVER`**: fill in after deployment (used for linking)
+
+### 4. Compile contracts
+
+```bash
+npm run compile
+```
+
+### 5. Deploy to Source Chain (Avalanche Fuji C-Chain)
 
 ```bash
 npm run deploy:source
 # → logs: TokenBridgeSender address
 ```
 
-### 4. Deploy to Destination Chain (Your Subnet)
+After deploying, copy the printed sender address into:
+
+- `scripts/deploy.js` → `DEPLOYED_SENDER`
+
+### 6. Deploy to Destination Chain (your Subnet / L1)
 
 ```bash
 npm run deploy:dest
 # → logs: BridgedToken + TokenBridgeReceiver addresses
 ```
 
-### 5. Link the two sides
+After deploying, copy the printed destination addresses into:
 
-Update `DEPLOYED_SENDER`, `DEPLOYED_RECEIVER`, and `DEST_CHAIN_ID` in `scripts/deploy.js`, then:
+- `scripts/deploy.js` → `DEPLOYED_BRIDGED`
+- `scripts/deploy.js` → `DEPLOYED_RECEIVER`
+
+### 7. Link the two sides (register destination)
+
+In `scripts/deploy.js`, set the destination chain’s blockchain ID (bytes32):
+
+- `linkSource()` → `DEST_CHAIN_ID`
+
+Then run:
 
 ```bash
 npm run link
 ```
+
+What linking does:
+
+- On **source**: `TokenBridgeSender.registerDestination(DEST_CHAIN_ID, DEPLOYED_RECEIVER)`
+- On **destination**: `TokenBridgeReceiver.setSourceBridge(SOURCE_CHAIN_ID, DEPLOYED_SENDER)` is attempted during `deploy:dest` if `DEPLOYED_SENDER` is already set
 
 ---
 
@@ -177,6 +214,23 @@ avalanche blockchain describe <yourBlockchainName>
 ```
 
 ---
+
+## Troubleshooting
+
+### MetaMask error: `eth_requestAccounts` already pending
+
+If you see an error like:
+
+- `Connection failed: Request of type eth_requestAccounts already pending ...`
+
+It means a wallet connection prompt is already open/pending in MetaMask.
+
+Fix:
+
+- Open MetaMask and approve/reject the pending connection request
+- Then reload `app.html` and click **Connect Wallet** once
+
+This repo also includes a guard in the UI to prevent multiple concurrent connect requests from rapid clicks.
 
 ## Resources
 
