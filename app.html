@@ -346,6 +346,7 @@ const BTOKEN = ['function balanceOf(address) view returns (uint256)','function a
 
 /* ── State ────────────────────────────────────────────────────────────── */
 let prov, signer, addr, chainId, txs=[], ri;
+let connectPromise = null;
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 const $=id=>document.getElementById(id);
@@ -371,23 +372,47 @@ function setStatus(which,type,msg){
 /* ── Wallet ───────────────────────────────────────────────────────────── */
 async function connectWallet(){
   if(!window.ethereum){alert('Install MetaMask to use AvaBridge.');return}
-  try{
-    await ethereum.request({method:'eth_requestAccounts'});
-    prov=new ethers.BrowserProvider(ethereum);
-    signer=await prov.getSigner();
-    addr=await signer.getAddress();
-    const net=await prov.getNetwork();
-    chainId=Number(net.chainId);
+  if(connectPromise) return connectPromise;
+  if(addr && prov && signer){
     updateWalletUI();
-    $('src-recip').value=addr;
-    $('dst-recip').value=addr;
-    log('info','Wallet connected',short(addr));
-    await refresh();
-    ri=setInterval(refresh,15000);
-    listenEvents();
-    ethereum.on('chainChanged',()=>location.reload());
-    ethereum.on('accountsChanged',()=>location.reload());
-  }catch(e){log('err','Connection failed: '+e.message.slice(0,60))}
+    return;
+  }
+  const btn=$('wallet-btn');
+  const prevLabel=btn?.textContent;
+  if(btn){btn.disabled=true;btn.textContent='Connecting…';}
+  connectPromise=(async ()=>{
+    try{
+      await ethereum.request({method:'eth_requestAccounts'});
+      prov=new ethers.BrowserProvider(ethereum);
+      signer=await prov.getSigner();
+      addr=await signer.getAddress();
+      const net=await prov.getNetwork();
+      chainId=Number(net.chainId);
+      updateWalletUI();
+      $('src-recip').value=addr;
+      $('dst-recip').value=addr;
+      log('info','Wallet connected',short(addr));
+      await refresh();
+      clearInterval(ri);
+      ri=setInterval(refresh,15000);
+      listenEvents();
+      ethereum.on('chainChanged',()=>location.reload());
+      ethereum.on('accountsChanged',()=>location.reload());
+    }catch(e){
+      const msg=(e && (e.message||String(e)))||'Unknown error';
+      // MetaMask: -32002 when a request is already pending in the extension UI.
+      if(e && (e.code===-32002 || /already pending/i.test(msg))){
+        log('err','Connection failed: request already pending. Open MetaMask and finish the prompt.');
+      }else{
+        log('err','Connection failed: '+msg.slice(0,80));
+      }
+      throw e;
+    }finally{
+      connectPromise=null;
+      if(btn){btn.disabled=false;btn.textContent=addr?short(addr):(prevLabel||'Connect Wallet');}
+    }
+  })();
+  return connectPromise;
 }
 
 function updateWalletUI(){
